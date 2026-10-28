@@ -34,4 +34,6 @@ On Android 15/API 35 and newer, the active WebView requests 30 Hz in the 30 FPS 
 
 First-party JavaScript uses ESLint and Prettier; Kotlin uses Spotless with ktlint. Vendored code is excluded from reformatting to preserve an inspectable upstream diff. Dependency versions and the Gradle distribution checksum are pinned. Android assets are kept in source so Android-only builds need no Node installation. The separate verification script rebuilds into a temporary directory and rejects any difference from those assets. CI also runs behavior and native layout checks.
 
+The browser smoke runs the actual offline Android bundle. Software-rendered runs lower only the test raster scale, retaining CSS viewports, shaders, geometry, real touch events, and all behavior assertions. Short interpolated gestures cover integration while unit tests cover dense gesture sequences and frame pacing. Phase logs, an eight-minute suite deadline, and retained evidence make browser stalls diagnosable; Android compilation runs before the graphics checks.
+
 The demo APK is intentionally a development build with a debug signature. It is separate from a store release, which would need maintained release signing, device qualification, and release configuration.

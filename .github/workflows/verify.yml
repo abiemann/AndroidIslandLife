@@ -57,16 +57,26 @@ jobs:
       - name: Check committed scene assets
         run: node scripts/verify-scene.mjs
 
+      - name: Check Kotlin and build demo APK
+        run: bash ./gradlew --no-daemon spotlessCheck assembleDebug lintDebug testDebugUnitTest
+
       - name: Install browser test runtime
         working-directory: scene
         run: npx --no-install playwright install --with-deps chromium
 
       - name: Exercise offline production scene
+        timeout-minutes: 10
         working-directory: scene
         run: npm run test:browser
 
-      - name: Check Kotlin and build demo APK
-        run: bash ./gradlew --no-daemon spotlessCheck assembleDebug lintDebug testDebugUnitTest
+      - name: Retain browser smoke report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: browser-smoke-report
+          path: scene/test-results/browser-smoke/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Retain built demo APK
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

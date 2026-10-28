@@ -43,7 +43,7 @@ Storm/Sun weather is a later scoped addition using the existing simulation and r
 The later close-water request intentionally removes tree/terrain camera avoidance and permits a 5m orbit at 1° elevation. Its updated 26-test suite, browser gesture checks, projection measurements and visual limits are recorded in [VERIFICATION.md](VERIFICATION.md). A full underwater rendering pass is outside this demo's current scope.
 
 - This is a debug demo with a development signature and debugging enabled, not a hardened store release. Do not imply otherwise in download descriptions.
-- Hosted GitHub verification has started; a complete passing run remains pending after adding explicit SDK setup. See the publication notes in [VERIFICATION.md](VERIFICATION.md).
+- Hosted GitHub verification has started; a complete passing run remains pending after explicit SDK setup and the software-graphics test repair. See the CI notes in [VERIFICATION.md](VERIFICATION.md).
 - Sustained phone thermals/battery consumption and a broad GPU/WebView device matrix remain unmeasured.
 - The 3D interaction remains primarily visual and gesture-driven; native controls support accessibility, but the scene is not a complete nonvisual experience.
 - The Unlicense applies to original code only. Redistributed third-party code keeps its own notices and terms.

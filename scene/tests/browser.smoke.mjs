@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -11,20 +12,50 @@ const output = path.join(sceneRoot, 'test-results/browser-smoke');
 const origin = 'https://appassets.androidplatform.net/assets/scene/';
 const report = { requests: [], errors: [], consoleErrors: [], checks: [] };
 await fs.mkdir(output, { recursive: true });
+const evidence = path.join(output, 'evidence.json');
+const started = Date.now();
+const softwareRendering =
+  process.platform === 'linux' || process.env.PLAYWRIGHT_SOFTWARE_RENDERING === '1';
+// Keep CSS dimensions and the production bundle intact. Software graphics only
+// need a smaller raster; dense gesture/math cases are covered by the unit tests.
+const gestureSteps = 3;
+function phase(label) {
+  report.phase = label;
+  console.log(`[${Math.round((Date.now() - started) / 1000)}s] ${label}`);
+}
+function passed(label) {
+  report.checks.push(label);
+  phase(`Passed: ${label}`);
+}
+// evaluate() and raw CDP input are not bounded by page.setDefaultTimeout().
+// Keep a hung renderer or cleanup from consuming the entire Android build job.
+const deadline = setTimeout(
+  () => {
+    report.pass = false;
+    const timeout = `Browser smoke exceeded eight minutes during: ${report.phase}`;
+    report.failure = report.failure ? `${report.failure}\n${timeout}` : timeout;
+    writeFileSync(evidence, JSON.stringify(report, null, 2) + '\n');
+    console.error(report.failure);
+    process.exit(1);
+  },
+  8 * 60 * 1000,
+);
+deadline.unref();
+phase('Launch browser');
 
 // Fulfill the actual Android bundle locally, including while offline. No dev
 // server, external assets, Android device, or machine-specific path is needed.
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
   headless: true,
-  args:
-    process.platform === 'linux'
-      ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
-      : [],
+  args: softwareRendering
+    ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+    : [],
 });
+report.browser = { version: browser.version(), softwareRendering };
 const context = await browser.newContext({
   viewport: { width: 411, height: 914 },
-  deviceScaleFactor: 1.5,
+  deviceScaleFactor: softwareRendering ? 0.25 : 1.5,
   hasTouch: true,
 });
 const page = await context.newPage();
@@ -129,6 +160,7 @@ async function checkIdleModeChanges(paused, active, limits) {
 }
 
 try {
+  phase('Offline startup');
   await context.setOffline(true);
   await page.goto(origin + 'index.html');
   await page.waitForFunction(
@@ -139,10 +171,13 @@ try {
   assert.equal(report.initial.failed, false);
   assert.equal(report.initial.weather, 'sun', 'The initial weather is sunny');
   assert.equal(report.initial.frameRateLimit, null, 'The default mode is unlocked');
-  await page.waitForTimeout(150);
+  await page.waitForFunction(
+    (elapsed) => window.island.getState().elapsed > elapsed,
+    report.initial.elapsed,
+  );
   assert.ok((await state()).elapsed > report.initial.elapsed, 'Animation advances offline');
   await page.screenshot({ path: path.join(output, 'portrait.png') });
-  report.checks.push('offline startup and animated portrait');
+  passed('offline startup and animated portrait');
 
   const cdp = await context.newCDPSession(page);
   const touch = (type, points) =>
@@ -166,12 +201,12 @@ try {
     for (let gesture = 0; gesture < gestures; gesture++) {
       const start = { id: 1, x: viewport.width / 2, y: viewport.height / 2 };
       await touch('touchStart', [start]);
-      for (let step = 1; step <= 8; step++) {
+      for (let step = 1; step <= gestureSteps; step++) {
         await touch('touchMove', [
           {
             ...start,
-            x: start.x + (dragX * step) / (gestures * 8),
-            y: start.y + (dragY * step) / (gestures * 8),
+            x: start.x + (dragX * step) / (gestures * gestureSteps),
+            y: start.y + (dragY * step) / (gestures * gestureSteps),
           },
         ]);
       }
@@ -183,6 +218,7 @@ try {
     near(water.target[1], 0, 'Offshore focus stays at sea level');
   }
   async function reachCloseView() {
+    phase('Close view: pan offshore');
     await panToOpenWater();
     // Set tilt before the final pinch: separately dispatched finger movements
     // briefly change separation, so a vertical drag can also affect zoom.
@@ -192,9 +228,10 @@ try {
       ((CAMERA.maxPolarAngle - orbit(await state()).polar) * viewport.height) /
         (2 * Math.PI * CAMERA.rotateSpeed) +
       16;
+    phase('Close view: lower viewing angle');
     await touch('touchStart', pair());
-    for (let step = 1; step <= 15; step++) {
-      await touch('touchMove', pair(0, 180, centerY - (tiltTravel * step) / 15));
+    for (let step = 1; step <= gestureSteps; step++) {
+      await touch('touchMove', pair(0, 180, centerY - (tiltTravel * step) / gestureSteps));
     }
     await touch('touchEnd', []);
     for (
@@ -202,8 +239,10 @@ try {
       gesture < 10 && orbit(await state()).distance > CAMERA.minDistance + 0.00001;
       gesture++
     ) {
+      phase(`Close view: pinch ${gesture + 1}`);
       await touch('touchStart', pair(0, 50));
-      for (let step = 1; step <= 10; step++) await touch('touchMove', pair(0, 50 + 28 * step));
+      for (let step = 1; step <= gestureSteps; step++)
+        await touch('touchMove', pair(0, 50 + (280 * step) / gestureSteps));
       await touch('touchEnd', []);
     }
     near(orbit(await state()).distance, CAMERA.minDistance, 'Pinch reaches close limit');
@@ -236,6 +275,7 @@ try {
     await page.waitForTimeout(100);
     return pannedClose;
   }
+  phase('Portrait touch gestures and close water views');
   await touch('touchStart', [{ id: 1, x: 205, y: 457 }]);
   await touch('touchMove', [{ id: 1, x: 255, y: 487 }]);
   await touch('touchEnd', []);
@@ -246,8 +286,8 @@ try {
 
   const before = orbit(await state());
   await touch('touchStart', pair());
-  for (let step = 1; step <= 15; step++)
-    await touch('touchMove', pair(((Math.PI / 4) * step) / 15));
+  for (let step = 1; step <= gestureSteps; step++)
+    await touch('touchMove', pair(((Math.PI / 4) * step) / gestureSteps));
   await touch('touchEnd', []);
   const twisted = orbit(await state());
   near(twisted.bearing - before.bearing, Math.PI / 4, 'Clockwise twist follows fingers');
@@ -263,7 +303,7 @@ try {
   assert.equal(report.closeStormPortrait.waterSide, 0, 'Storm retains both wave faces');
   await page.screenshot({ path: path.join(output, 'storm-close-portrait.png') });
   await page.evaluate(() => window.island.setWeather('sun'));
-  report.checks.push('real touch pan, twist, pinch, and tilt');
+  passed('real touch pan, twist, pinch, and tilt');
 
   // Exercise all runtime modes with input. A slow CI GPU is valid: caps are
   // ceilings, and Unlocked follows available browser/display performance.
@@ -271,13 +311,17 @@ try {
   near((await state()).cameraNear, CAMERA.near, 'Recenter restores overview depth precision');
   report.frameRateModes = [];
   for (const limit of [30, 60, null]) {
+    phase(`Touch input with frame limit ${limit ?? 'Unlocked'}`);
     await page.evaluate((value) => {
       window.__native.fps.length = 0;
       window.island.setFrameRateLimit(value);
     }, limit);
     assert.equal((await state()).frameRateLimit, limit, 'Runtime mode changes are reflected');
     await touch('touchStart', [{ id: 1, x: 205, y: 457 }]);
-    for (let step = 0; step < 70; step++) {
+    // Cover a full FPS reporting window without forcing a slow software GPU
+    // through 70 compositor acknowledgments for each limit.
+    const inputStarted = Date.now();
+    for (let step = 0; step < 2 || Date.now() - inputStarted < 1300; step++) {
       await touch('touchMove', [{ id: 1, x: 205 + 30 * Math.sin(step / 8), y: 457 }]);
       await page.waitForTimeout(16);
     }
@@ -297,8 +341,9 @@ try {
     }
     report.frameRateModes.push({ limit, fps });
   }
-  report.checks.push('runtime 30 FPS, 60 FPS, and Unlocked modes under real input');
+  passed('runtime 30 FPS, 60 FPS, and Unlocked modes under real input');
 
+  phase('Pause, weather changes, and background lifecycle');
   await page.evaluate(() => window.island.setPaused(true));
   await page.waitForFunction(() => window.__native.pending.size === 0);
   const paused = await snapshot();
@@ -364,11 +409,12 @@ try {
   await page.waitForTimeout(1200);
   await page.screenshot({ path: path.join(output, 'storm-portrait.png') });
   await page.evaluate(() => window.island.setWeather('sun'));
-  report.checks.push('mode changes preserve pause, paused redraw, background and resume');
-  report.checks.push('Storm/Sun changes, stronger waves, paused redraw, and background selection');
+  passed('mode changes preserve pause, paused redraw, background and resume');
+  passed('Storm/Sun changes, stronger waves, paused redraw, and background selection');
 
+  phase('Landscape touch gestures and close water views');
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.waitForTimeout(200);
+  await page.waitForFunction(() => document.querySelector('canvas').style.width === '1280px');
   report.landscape = await state();
   assert.deepEqual(report.landscape.target, [0, CAMERA.targetY, 0]);
   assert.equal(report.landscape.failed, false);
@@ -385,9 +431,7 @@ try {
   await page.evaluate(() => window.island.resetView());
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(output, 'storm-landscape.png') });
-  report.checks.push(
-    'real offshore pan, waterline zoom/tilt, and close panning in both orientations',
-  );
+  passed('real offshore pan, waterline zoom/tilt, and close panning in both orientations');
   assert.equal(
     await page.evaluate(() => document.querySelector('canvas').getContext('webgl2').getError()),
     0,
@@ -399,8 +443,9 @@ try {
     'Only bundled resources requested',
   );
   assert.deepEqual((await snapshot()).failures, []);
-  report.checks.push('landscape recenter and clean WebGL/JavaScript');
+  passed('landscape recenter and clean WebGL/JavaScript');
 
+  phase('Failure and reload recovery');
   injectingFailure = true;
   await page.evaluate(() => {
     for (let index = 0; index < 2; index++) {
@@ -425,15 +470,17 @@ try {
   assert.deepEqual((await snapshot()).failures, []);
   assert.equal((await state()).frameRateLimit, null, 'A fresh scene defaults to Unlocked');
   assert.equal((await state()).weather, 'sun', 'A fresh scene defaults to Sun');
-  report.checks.push('idempotent failure, mode changes stay stopped, reload recovery');
+  passed('idempotent failure, mode changes stay stopped, reload recovery');
   report.pass = true;
 } catch (error) {
   report.pass = false;
   report.failure = error.stack || String(error);
   await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {});
 } finally {
+  await fs.writeFile(evidence, JSON.stringify(report, null, 2) + '\n');
+  phase('Close browser');
   await browser.close();
-  await fs.writeFile(path.join(output, 'evidence.json'), JSON.stringify(report, null, 2) + '\n');
+  clearTimeout(deadline);
 }
 console.log(
   JSON.stringify(

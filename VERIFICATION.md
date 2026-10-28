@@ -120,6 +120,14 @@ Expanded the camera to a 5m minimum orbit and 1° minimum elevation, with its pa
 
 Earlier camera-clearance entries in this document describe superseded behavior.
 
+## Hosted graphics-test timeout repair — 2026-10-28
+
+The SDK setup repair succeeded in [run 40782534637](https://github.com/abiemann/AndroidIslandLife/actions/runs/40782534637), but its browser smoke consumed the remaining 30-minute job budget before Android compilation could run. A local software-rendering reproduction showed roughly one second per sequential touch dispatch. Hundreds of redundant movement samples were expensive because browser input waits for compositor synchronization.
+
+The smoke now retains every existing behavior assertion with shorter interpolated gestures, a timed input window for each FPS setting, and quarter-scale raster resolution only in software-graphics tests. CSS viewport dimensions, production shaders/geometry, touch delivery, and app settings are unchanged. Startup and resize checks wait for actual state changes instead of assuming a frame finishes within 150–200ms. Each phase is logged; a suite deadline covers raw CDP/evaluation calls, evidence is saved before browser cleanup, and CI retains that evidence even on failure. Android compilation runs before the graphics smoke.
+
+JavaScript lint/formatting, all 26 unit tests, production-bundle reproduction, and local documentation links passed. The complete software-rendering smoke passed with Playwright's pinned Chromium 156.0.8078.4 in 197 seconds at quarter scale (versus 290 seconds at half scale on the same Windows machine). The normal 1.5-scale hardware-rendering run passed in 18 seconds. These are test-runtime samples, not phone performance measurements. Hosted validation remains pending; these changes do not alter the Android app or scene bundle.
+
 ## Remaining device validation
 
 Sustained physical-device performance, heat/battery usage, and GPU compatibility across vendors remain unmeasured. Brief Pixel checks do not establish long-term performance. The app requires WebGL2 plus float rendering/filtering and multisampled half-float targets; unsupported devices show a retry/help state. No release APK, signing configuration or Play Store publication was created.
