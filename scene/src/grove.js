@@ -155,5 +155,5 @@ export function createGrove(reflectionLayer = 1) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
   }
-  return { group, treePositions: trees, canopies: crowns };
+  return { group, treePositions: trees };
 }

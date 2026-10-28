@@ -14,7 +14,6 @@ import { FloaterShadow } from '../vendor/ultra-water/src/scene/floaterShadow.js'
 import { PlanarReflection } from '../vendor/ultra-water/src/engine/PlanarReflection.js';
 import { PostFX } from '../vendor/ultra-water/src/engine/PostFX.js';
 import { createGrove } from './grove.js';
-import { createCanopyClearance } from './canopyClearance.js';
 import { applyWeather, skyForWeather } from './weather.js';
 
 const status = document.getElementById('status');
@@ -72,17 +71,18 @@ function start() {
     fail(new Error('WebGL context lost.'));
   });
 
-  // Preserve shoreline depth precision on mobile depth buffers.
+  // Camera changes shorten the near plane for close waves; the overview keeps
+  // a larger near plane for shoreline precision on mobile depth buffers.
   const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, CAMERA.near, CAMERA.far);
   const controls = new IslandControls(camera, canvas);
   controls.enablePan = true;
-  // Pan along the ground plane so moving the view cannot lower the camera
-  // into terrain. Two fingers combine twist, vertical tilt and pinch zoom.
+  // Pan along the water plane. Two fingers combine twist, vertical tilt and
+  // pinch zoom; no collision correction raises the camera above the island.
   controls.screenSpacePanning = false;
   controls.touches.ONE = THREE.TOUCH.PAN;
   controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
   controls.minPolarAngle = CAMERA.minPolarAngle;
-  // The closest viewing angle is 22.95° above horizontal.
+  // Tilt down to one degree above the water for a close view of the waves.
   controls.maxPolarAngle = CAMERA.maxPolarAngle;
   controls.rotateSpeed = CAMERA.rotateSpeed;
   controls.zoomSpeed = CAMERA.zoomSpeed;
@@ -102,7 +102,6 @@ function start() {
   scene.environment = sky.cube;
   scene.add(sky.background);
   const grove = createGrove(1);
-  const clearCanopy = createCanopyClearance(grove.canopies, CAMERA.targetY);
   const terrain = createTerrain({
     sky,
     caustics: caustics.uniforms,
@@ -218,7 +217,18 @@ function start() {
     loop.requestDraw();
   }
   function cameraChanged() {
-    clearCanopy(camera, controls.target);
+    const near = THREE.MathUtils.clamp(
+      camera.position.distanceTo(controls.target) * CAMERA.nearScale,
+      CAMERA.minNear,
+      CAMERA.near,
+    );
+    if (camera.near !== near) {
+      camera.near = near;
+      camera.updateProjectionMatrix();
+    }
+    // Let crests show their existing underside shading when they cross a low
+    // camera; high views retain the library's folded-face rejection.
+    u.uCamSide.value = camera.position.y < 40 ? 0 : -1;
     camera.updateMatrixWorld();
     drawSoon();
   }
@@ -282,6 +292,8 @@ function start() {
       height: size.y,
       target: controls.target.toArray(),
       camera: camera.position.toArray(),
+      cameraNear: camera.near,
+      waterSide: u.uCamSide.value,
       failed,
     }),
   };

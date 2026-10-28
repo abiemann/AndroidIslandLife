@@ -108,6 +108,18 @@ Initialized [abiemann/AndroidIslandLife](https://github.com/abiemann/AndroidIsla
 
 The [first hosted workflow](https://github.com/abiemann/AndroidIslandLife/actions/runs/40782142640) reached SDK installation and failed because `sdkmanager` was absent from the runner's PATH. Both jobs now explicitly install the Android command-line tools and required packages using the revision-pinned Android setup action. A complete passing hosted run remains pending; the local validation above is independent of that result.
 
+## Unrestricted close water view — 2026-10-28
+
+Expanded the camera to a 5m minimum orbit and 1° minimum elevation, with its pan/focus plane at sea level. Removed the canopy-clearance lift and its unused helper/tests as requested. Trees and terrain no longer raise the camera. The near plane now follows 2% of orbit distance within 0.1–10m, and low views enable the water shader's existing underside branch when crests cross the eye.
+
+- All 26 current unit tests passed. The five tests for the removed canopy-lift feature were retired, and a new low-view gesture test verifies free panning without raising the eye.
+- The production browser smoke used real touch events to pan offshore, pinch to 5m, tilt to 89° polar angle, and pan again without losing the low view. Both portrait and landscape reached eye height 0.087262m, near plane 0.1m, and sea-level focus. Recenter restored the overview and its larger near plane. Existing weather, frame-rate selection, pause/background, and failure checks also passed without unexpected JavaScript or WebGL errors.
+- Sun and Storm views in both orientations were visually reviewed. Waves are visible at eye level; at the extreme limit, a storm crest can surround the camera. The existing underside shading is supported, but this change does not add a full underwater fog/composite renderer. Camera movement through island geometry is intentionally unrestricted.
+- Projection checks across 36 distance/tilt/aspect combinations remained finite and nonsingular. The lowest near-plane corner at the extreme close angle is about 0.047m above mean sea level; actual animated crests can rise above it.
+- JavaScript formatting/lint, scene-bundle reproduction, Kotlin formatting, debug APK build, and Android lint passed. Native UI code is unchanged. After USB debugging was reauthorized, the APK installed successfully on the Pixel 8 Pro. The app loaded the new bundle without failure; its live Storm view reported a 2.84m eye height, adaptive near plane, and enabled underside shading. The selected 30 FPS mode was preserved.
+
+Earlier camera-clearance entries in this document describe superseded behavior.
+
 ## Remaining device validation
 
 Sustained physical-device performance, heat/battery usage, and GPU compatibility across vendors remain unmeasured. Brief Pixel checks do not establish long-term performance. The app requires WebGL2 plus float rendering/filtering and multisampled half-float targets; unsupported devices show a retry/help state. No release APK, signing configuration or Play Store publication was created.

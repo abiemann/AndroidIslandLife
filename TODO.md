@@ -7,6 +7,7 @@
 - [x] Add Maps-style two-finger twisting while preserving up/down tilt and close pinch zoom; verify real multi-touch input in the bundled scene.
 - [x] Lower the minimum viewing angle from 33.75° to 27° (20%); verify maximum zoom, tilt, pan, twist, and Recenter in portrait and landscape.
 - [x] Extend close zoom to 172.125m and lowest elevation to 22.95° (15% each), with local treetop clearance and combined-limit checks in both orientations.
+- [x] Supersede those limits with a 5m orbit, 1° elevation, and a focus at sea level; remove the tree-clearance lift and adapt the near plane for close wave views.
 - [x] Implement Compose host, native controls, lifecycle cleanup and retry state.
 - [x] Add Storm/Sun beside Recenter, with stronger waves, overcast lighting, restoration of sunny settings, and weather state retained through recreation/retry.
 - [x] Verify debug APK build and Android lint (zero errors; pinned-version update advisories remain).

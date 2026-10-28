@@ -10,7 +10,9 @@ Ultra-Water is a Three.js/WebGL2 renderer. Compose owns the native controls and 
 
 The app reuses Ultra-Water's waves, shore foam, wet sand, caustics, reflections, and atmosphere. It adds deterministic instanced vegetation, touch controls, lifecycle handling, and mobile rendering limits. Scene composition, frame scheduling, and gesture handling have separate responsibilities. See [DESIGN.md](DESIGN.md) for boundaries and [VERIFICATION.md](VERIFICATION.md) for checked behavior and remaining limits.
 
-The camera approaches within 172.125 scene units of its focus and tilts to 22.95° above horizontal, 15% closer and 15% lower than the previous limits. Near treetops, the camera and focus rise together just enough to keep the close view clear. Unlocked rendering submits a frame on every available display callback; capped modes pace animation and touch redraws together. Rendering retains its 1.1 million pixel budget. The counter measures submitted scene frames, not display refresh rate or GPU throughput. Actual speed depends on the GPU, WebView, and Android's display, battery, and thermal policies; a selected limit is not a guaranteed frame rate.
+For a close view of the waves, pan over the sea first, then pinch in and drag both fingers up to lower the viewing angle. The camera can approach within 5 scene units of its focus and tilt to 1° above horizontal, placing the closest/lowest view about 9cm above mean sea level. Navigation is unrestricted by trees or terrain; the camera no longer rises over treetops automatically. Nearby wave crests can pass above the view.
+
+Unlocked rendering submits a frame on every available display callback; capped modes pace animation and touch redraws together. Rendering retains its 1.1 million pixel budget. The counter measures submitted scene frames, not display refresh rate or GPU throughput. Actual speed depends on the GPU, WebView, and Android's display, battery, and thermal policies; a selected limit is not a guaranteed frame rate.
 
 ## Build the demo
 

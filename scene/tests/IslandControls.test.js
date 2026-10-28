@@ -158,16 +158,46 @@ test('combined twist, vertical drag, and pinch preserve independent gesture effe
 
 test('vertical drag returns to its starting tilt after reaching either tilt limit', () => {
   const controls = createControls();
+  const travel =
+    (Math.max(radians(48) - CAMERA.minPolarAngle, CAMERA.maxPolarAngle - radians(48)) * height) /
+      (2 * Math.PI * CAMERA.rotateSpeed) +
+    20;
   startGesture(controls);
-  movePair(controls, { y: center.y + 120 });
+  movePair(controls, { y: center.y + travel });
   near(controls.getPolarAngle(), CAMERA.minPolarAngle, 'upper limit');
   movePair(controls, { y: center.y });
   near(controls.getPolarAngle(), radians(48), 'restored tilt');
-  movePair(controls, { y: center.y - 120 }, [1, 0]);
+  movePair(controls, { y: center.y - travel }, [1, 0]);
   near(controls.getPolarAngle(), CAMERA.maxPolarAngle, 'lower limit');
   movePair(controls, { y: center.y }, [1, 0]);
   near(controls.getPolarAngle(), radians(48), 'restored tilt');
   near(controls.getAzimuthalAngle(), 0, 'bearing');
+});
+
+test('closest low-angle view can pan at water level without raising the camera', () => {
+  const polar = (CAMERA.maxPolarAngle * 180) / Math.PI;
+  const controls = createControls({ polar, distance: CAMERA.minDistance * 1.3 });
+  startGesture(controls);
+  movePair(controls, { separation: 400 });
+  near(controls.getDistance(), 5, 'Water inspection distance');
+  near(controls.target.y, 0, 'Focus remains at sea level');
+  assert.ok(controls.object.position.y > 0 && controls.object.position.y < 0.1);
+
+  const eyeHeight = controls.object.position.y;
+  controls.object.updateMatrixWorld();
+  controls._pointers = [1];
+  controls._pointerPositions = {};
+  const pointer = (x, y) => ({ pointerId: 1, pageX: x, pageY: y });
+  controls._trackPointer(pointer(center.x, center.y));
+  controls._handleTouchStartPan(pointer(center.x, center.y));
+  controls._trackPointer(pointer(center.x + 80, center.y + 40));
+  controls._handleTouchMovePan(pointer(center.x + 80, center.y + 40));
+  controls.update();
+  assert.ok(Math.hypot(controls.target.x, controls.target.z) > 0.1, 'Close pan moves the focus');
+  near(controls.target.y, 0, 'Panning does not lift the focus');
+  near(controls.object.position.y, eyeHeight, 'Panning does not lift the camera');
+  near(controls.getDistance(), 5, 'Panning preserves close zoom');
+  near(controls.getPolarAngle(), CAMERA.maxPolarAngle, 'Panning preserves water-level tilt');
 });
 
 for (const cancelled of [false, true]) {

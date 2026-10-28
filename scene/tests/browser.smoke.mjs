@@ -102,12 +102,13 @@ function orbit(value) {
     bearing: Math.atan2(offset[0], offset[2]),
   };
 }
-function pair(angle = 0, separation = 180, y = 457) {
+function pair(angle = 0, separation = 180, y = page.viewportSize().height / 2) {
+  const centerX = page.viewportSize().width / 2;
   const dx = (Math.cos(angle) * separation) / 2;
   const dy = (Math.sin(angle) * separation) / 2;
   return [
-    { id: 1, x: 205 - dx, y: y - dy },
-    { id: 2, x: 205 + dx, y: y + dy },
+    { id: 1, x: centerX - dx, y: y - dy },
+    { id: 2, x: centerX + dx, y: y + dy },
   ];
 }
 
@@ -146,15 +147,61 @@ try {
   const cdp = await context.newCDPSession(page);
   const touch = (type, points) =>
     cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+  async function panToOpenWater() {
+    const initial = await state();
+    const currentOrbit = orbit(initial);
+    const viewport = page.viewportSize();
+    const scale =
+      (2 * currentOrbit.distance * Math.tan((CAMERA.fov * Math.PI) / 360)) / viewport.height;
+    const dx = 800 - initial.target[0];
+    const dz = 800 - initial.target[2];
+    const dragX =
+      (-Math.cos(currentOrbit.bearing) * dx + Math.sin(currentOrbit.bearing) * dz) / scale;
+    const dragY =
+      (-Math.sin(currentOrbit.bearing) * dx - Math.cos(currentOrbit.bearing) * dz) / scale;
+    // Several realistic one-finger drags keep every touch inside the viewport.
+    const gestures = Math.ceil(
+      Math.max(Math.abs(dragX) / (viewport.width * 0.3), Math.abs(dragY) / (viewport.height * 0.3)),
+    );
+    for (let gesture = 0; gesture < gestures; gesture++) {
+      const start = { id: 1, x: viewport.width / 2, y: viewport.height / 2 };
+      await touch('touchStart', [start]);
+      for (let step = 1; step <= 8; step++) {
+        await touch('touchMove', [
+          {
+            ...start,
+            x: start.x + (dragX * step) / (gestures * 8),
+            y: start.y + (dragY * step) / (gestures * 8),
+          },
+        ]);
+      }
+      await touch('touchEnd', []);
+    }
+    const water = await state();
+    near(water.target[0], 800, 'Real panning places focus offshore', 0.05);
+    near(water.target[2], 800, 'Real panning places focus offshore', 0.05);
+    near(water.target[1], 0, 'Offshore focus stays at sea level');
+  }
   async function reachCloseView() {
+    await panToOpenWater();
     // Set tilt before the final pinch: separately dispatched finger movements
     // briefly change separation, so a vertical drag can also affect zoom.
+    const viewport = page.viewportSize();
+    const centerY = viewport.height / 2;
+    const tiltTravel =
+      ((CAMERA.maxPolarAngle - orbit(await state()).polar) * viewport.height) /
+        (2 * Math.PI * CAMERA.rotateSpeed) +
+      16;
     await touch('touchStart', pair());
     for (let step = 1; step <= 15; step++) {
-      await touch('touchMove', pair(0, 180, 457 - (207 * step) / 15));
+      await touch('touchMove', pair(0, 180, centerY - (tiltTravel * step) / 15));
     }
     await touch('touchEnd', []);
-    for (let gesture = 0; gesture < 5; gesture++) {
+    for (
+      let gesture = 0;
+      gesture < 10 && orbit(await state()).distance > CAMERA.minDistance + 0.00001;
+      gesture++
+    ) {
       await touch('touchStart', pair(0, 50));
       for (let step = 1; step <= 10; step++) await touch('touchMove', pair(0, 50 + 28 * step));
       await touch('touchEnd', []);
@@ -166,8 +213,28 @@ try {
       'Vertical two-finger drag reaches low tilt',
     );
     near(orbit(await state()).distance, CAMERA.minDistance, 'Low tilt preserves close zoom');
+    await page.waitForFunction(() => window.island.getState().waterSide === 0);
+    const close = await state();
+    near(close.cameraNear, CAMERA.minNear, 'Close water keeps a short clipping plane');
+    near(close.target[1], 0, 'Close view does not raise the focus for trees');
+    assert.ok(close.camera[0] > 600 && close.camera[2] > 600, 'Close screenshots show open water');
+    assert.ok(
+      close.camera[1] > 0 && close.camera[1] < 0.1,
+      'Eye reaches within 10 cm of sea level',
+    );
+
+    const start = { id: 1, x: viewport.width / 2, y: centerY };
+    await touch('touchStart', [start]);
+    await touch('touchMove', [{ ...start, x: start.x + 60, y: start.y + 30 }]);
+    await touch('touchEnd', []);
+    const pannedClose = await state();
+    assert.notDeepEqual(pannedClose.target, close.target, 'One finger still pans at the waterline');
+    near(pannedClose.target[1], 0, 'Close panning preserves sea-level focus');
+    near(pannedClose.camera[1], close.camera[1], 'Close panning preserves low eye height');
+    near(orbit(pannedClose).distance, CAMERA.minDistance, 'Close panning preserves zoom');
+    near(pannedClose.cameraNear, CAMERA.minNear, 'Close panning preserves the clipping plane');
     await page.waitForTimeout(100);
-    return state();
+    return pannedClose;
   }
   await touch('touchStart', [{ id: 1, x: 205, y: 457 }]);
   await touch('touchMove', [{ id: 1, x: 255, y: 487 }]);
@@ -188,11 +255,20 @@ try {
   near(twisted.distance, before.distance, 'Pure twist keeps distance');
   report.closePortrait = await reachCloseView();
   await page.screenshot({ path: path.join(output, 'close-portrait.png') });
+  await page.evaluate(() => window.island.setWeather('storm'));
+  await page.waitForTimeout(1200);
+  report.closeStormPortrait = await state();
+  assert.deepEqual(report.closeStormPortrait.camera, report.closePortrait.camera);
+  near(report.closeStormPortrait.cameraNear, CAMERA.minNear, 'Storm keeps close clipping');
+  assert.equal(report.closeStormPortrait.waterSide, 0, 'Storm retains both wave faces');
+  await page.screenshot({ path: path.join(output, 'storm-close-portrait.png') });
+  await page.evaluate(() => window.island.setWeather('sun'));
   report.checks.push('real touch pan, twist, pinch, and tilt');
 
   // Exercise all runtime modes with input. A slow CI GPU is valid: caps are
   // ceilings, and Unlocked follows available browser/display performance.
   await page.evaluate(() => window.island.resetView());
+  near((await state()).cameraNear, CAMERA.near, 'Recenter restores overview depth precision');
   report.frameRateModes = [];
   for (const limit of [30, 60, null]) {
     await page.evaluate((value) => {
@@ -301,11 +377,17 @@ try {
   await page.screenshot({ path: path.join(output, 'close-landscape.png') });
   await page.evaluate(() => window.island.setWeather('storm'));
   await page.waitForTimeout(1200);
+  report.closeStormLandscape = await state();
+  assert.deepEqual(report.closeStormLandscape.camera, report.closeLandscape.camera);
+  near(report.closeStormLandscape.cameraNear, CAMERA.minNear, 'Storm keeps close clipping');
+  assert.equal(report.closeStormLandscape.waterSide, 0, 'Storm retains both wave faces');
   await page.screenshot({ path: path.join(output, 'storm-close-landscape.png') });
   await page.evaluate(() => window.island.resetView());
   await page.waitForTimeout(200);
   await page.screenshot({ path: path.join(output, 'storm-landscape.png') });
-  report.checks.push('closest zoom and lowest tilt together in portrait and landscape');
+  report.checks.push(
+    'real offshore pan, waterline zoom/tilt, and close panning in both orientations',
+  );
   assert.equal(
     await page.evaluate(() => document.querySelector('canvas').getContext('webgl2').getError()),
     0,

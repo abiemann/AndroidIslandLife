@@ -40,6 +40,8 @@ The subsequent FPS selector replaces the fixed cap with saved 30/60/Unlocked cho
 
 Storm/Sun weather is a later scoped addition using the existing simulation and rendering resources. Its 30 unit tests, four native UI tests, full Android smoke, browser, visual and Pixel verification are recorded in [VERIFICATION.md](VERIFICATION.md); the original audit's counts above remain a record of that earlier audit.
 
+The later close-water request intentionally removes tree/terrain camera avoidance and permits a 5m orbit at 1° elevation. Its updated 26-test suite, browser gesture checks, projection measurements and visual limits are recorded in [VERIFICATION.md](VERIFICATION.md). A full underwater rendering pass is outside this demo's current scope.
+
 - This is a debug demo with a development signature and debugging enabled, not a hardened store release. Do not imply otherwise in download descriptions.
 - Hosted GitHub verification has started; a complete passing run remains pending after adding explicit SDK setup. See the publication notes in [VERIFICATION.md](VERIFICATION.md).
 - Sustained phone thermals/battery consumption and a broad GPU/WebView device matrix remain unmeasured.
