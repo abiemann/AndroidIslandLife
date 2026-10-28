@@ -39,7 +39,9 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Install Android SDK packages
-        run: sdkmanager 'platforms;android-36.1' 'build-tools;36.0.0'
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: 'platform-tools platforms;android-36.1 build-tools;36.0.0'
 
       - name: Install locked scene dependencies
         working-directory: scene
@@ -94,7 +96,9 @@ jobs:
         uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
 
       - name: Install compilation SDK
-        run: sdkmanager 'platforms;android-36.1' 'build-tools;36.0.0'
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: 'platform-tools platforms;android-36.1 build-tools;36.0.0'
 
       - name: Enable emulator acceleration
         run: |

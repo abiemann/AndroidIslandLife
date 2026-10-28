@@ -19,7 +19,7 @@
 - [x] Add frame-loop lifecycle tests and portable offline browser smoke checks.
 - [x] Fix and test large-text header layout and reachable Retry in short windows.
 - [x] Add the Unlicense for original code and retain bundled third-party notices.
-- [ ] Run the checked-in GitHub Actions workflow after the project is hosted; local validation is separate from a hosted CI result.
+- [ ] Complete a successful hosted GitHub Actions run. The first run exposed missing SDK tools on the runner; explicit Android SDK setup is now configured. Local validation is separate from a hosted CI result.
 - [ ] Broaden physical GPU/WebView coverage and evaluate nonvisual camera-control alternatives.
 
 No store release, release signing, audio, accounts or networking are included.

@@ -102,6 +102,12 @@ Added a Storm/Sun action immediately left of Recenter. Storm increases wind from
 - On the Pixel 8 Pro, the native weather action appeared directly left of Recenter, switched both ways, preserved the camera/FPS selection, and restored calm settings without advancing paused simulation time. The phone's storm view was visually reviewed. A brief Unlocked storm sample measured about 41–46 submitted FPS; this is not a sustained thermal benchmark.
 - JavaScript formatting/lint, fresh-bundle comparison, Kotlin formatting, Android compilation and lint passed. Android lint still reports zero errors and ten pinned-version update advisories.
 
+## Initial GitHub publication — 2026-10-28
+
+Initialized [abiemann/AndroidIslandLife](https://github.com/abiemann/AndroidIslandLife) on `main` from the verified 81-file source export. Machine settings, build outputs, signing keys and caches are excluded. Git-normalized source reproduced the committed scene bundle exactly, and the Gradle wrapper has its executable bit set.
+
+The [first hosted workflow](https://github.com/abiemann/AndroidIslandLife/actions/runs/40782142640) reached SDK installation and failed because `sdkmanager` was absent from the runner's PATH. Both jobs now explicitly install the Android command-line tools and required packages using the revision-pinned Android setup action. A complete passing hosted run remains pending; the local validation above is independent of that result.
+
 ## Remaining device validation
 
 Sustained physical-device performance, heat/battery usage, and GPU compatibility across vendors remain unmeasured. Brief Pixel checks do not establish long-term performance. The app requires WebGL2 plus float rendering/filtering and multisampled half-float targets; unsupported devices show a retry/help state. No release APK, signing configuration or Play Store publication was created.
