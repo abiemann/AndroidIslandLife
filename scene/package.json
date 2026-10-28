@@ -1,0 +1,32 @@
+{
+  "name": "island-life-scene",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Unlicense",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.js",
+    "test:browser": "node tests/browser.smoke.mjs",
+    "lint": "cd .. && node scene/node_modules/eslint/bin/eslint.js --config scene/eslint.config.js scene scripts",
+    "format": "prettier --config .prettierrc.json --write . ../scripts ../.github",
+    "format:check": "prettier --config .prettierrc.json --check . ../scripts ../.github",
+    "check:bundle": "node ../scripts/verify-scene.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.13.0",
+    "globals": "17.13.0",
+    "playwright": "1.64.1",
+    "prettier": "3.9.10",
+    "vite": "8.3.5"
+  }
+}

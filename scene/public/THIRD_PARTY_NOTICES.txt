@@ -1,0 +1,64 @@
+Ultra-Water
+Source: https://github.com/Humpalumps/Ultra-Water
+Revision: e58ddcdc18ea779b9386a2e5c76f2c6329c8bab9
+Local modifications by Island Life; see scene/vendor/ultra-water/CHANGES.md.
+
+MIT License
+
+Copyright (c) 2026 Humpalumps
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+AndroidX
+Source: https://android.googlesource.com/platform/frameworks/support/
+Copyright The Android Open Source Project
+License: Apache License 2.0 (complete text in APACHE-2.0.txt).
+
+Kotlin standard library and kotlinx.coroutines
+Sources: https://github.com/JetBrains/kotlin
+         https://github.com/Kotlin/kotlinx.coroutines
+Copyright JetBrains s.r.o. and Kotlin Programming Language contributors
+License: Apache License 2.0 (complete text in APACHE-2.0.txt).
+
+Island Life's original code uses the Unlicense, included in
+ISLAND_LIFE_LICENSE.txt. That dedication does not replace these third-party
+licenses. See the Gradle and npm lock/configuration files for dependency versions.
+
+Three.js
+The MIT License
+
+Copyright © 2010-2026 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.

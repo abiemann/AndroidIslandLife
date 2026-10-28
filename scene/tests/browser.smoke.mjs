@@ -1,0 +1,363 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { chromium } from 'playwright';
+import { CAMERA } from '../src/cameraConfig.js';
+
+const sceneRoot = fileURLToPath(new URL('../', import.meta.url));
+const assets = path.resolve(sceneRoot, '../app/src/main/assets/scene');
+const output = path.join(sceneRoot, 'test-results/browser-smoke');
+const origin = 'https://appassets.androidplatform.net/assets/scene/';
+const report = { requests: [], errors: [], consoleErrors: [], checks: [] };
+await fs.mkdir(output, { recursive: true });
+
+// Fulfill the actual Android bundle locally, including while offline. No dev
+// server, external assets, Android device, or machine-specific path is needed.
+const browser = await chromium.launch({
+  executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || undefined,
+  headless: true,
+  args:
+    process.platform === 'linux'
+      ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+      : [],
+});
+const context = await browser.newContext({
+  viewport: { width: 411, height: 914 },
+  deviceScaleFactor: 1.5,
+  hasTouch: true,
+});
+const page = await context.newPage();
+page.setDefaultTimeout(120000);
+let injectingFailure = false;
+page.on('pageerror', (error) => {
+  if (!injectingFailure) report.errors.push(String(error));
+});
+page.on('console', (message) => {
+  if (message.type() === 'error' && !injectingFailure) report.consoleErrors.push(message.text());
+});
+await page.addInitScript(() => {
+  window.__native = { ready: 0, failures: [], fps: [], callbacks: 0, pending: new Set() };
+  window.IslandAndroid = {
+    ready() {
+      window.__native.ready++;
+    },
+    failed(message) {
+      window.__native.failures.push(message);
+    },
+    fps(value) {
+      window.__native.fps.push(value);
+    },
+  };
+  const request = window.requestAnimationFrame.bind(window);
+  const cancel = window.cancelAnimationFrame.bind(window);
+  window.requestAnimationFrame = (callback) => {
+    const id = request((time) => {
+      window.__native.pending.delete(id);
+      window.__native.callbacks++;
+      callback(time);
+    });
+    window.__native.pending.add(id);
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => {
+    window.__native.pending.delete(id);
+    cancel(id);
+  };
+});
+await context.route('**/*', async (route) => {
+  const url = route.request().url();
+  report.requests.push(url);
+  if (!url.startsWith(origin)) return route.abort();
+  const relative = decodeURIComponent(new URL(url).pathname.slice('/assets/scene/'.length));
+  const filename = path.resolve(assets, relative);
+  assert.ok(filename.startsWith(assets + path.sep), 'Asset path stays inside the bundle');
+  const contentType = filename.endsWith('.js')
+    ? 'text/javascript'
+    : filename.endsWith('.css')
+      ? 'text/css'
+      : 'text/html';
+  await route.fulfill({ status: 200, body: await fs.readFile(filename), contentType });
+});
+
+const state = () => page.evaluate(() => window.island.getState());
+const snapshot = () =>
+  page.evaluate(() => ({
+    state: window.island.getState(),
+    callbacks: window.__native.callbacks,
+    pending: window.__native.pending.size,
+    fps: window.__native.fps.at(-1),
+    ready: window.__native.ready,
+    failures: window.__native.failures,
+  }));
+function near(actual, expected, label, tolerance = 1e-5) {
+  assert.ok(Math.abs(actual - expected) <= tolerance, `${label}: ${actual} != ${expected}`);
+}
+function orbit(value) {
+  const offset = value.camera.map((coordinate, index) => coordinate - value.target[index]);
+  const distance = Math.hypot(...offset);
+  return {
+    distance,
+    polar: Math.acos(offset[1] / distance),
+    bearing: Math.atan2(offset[0], offset[2]),
+  };
+}
+function pair(angle = 0, separation = 180, y = 457) {
+  const dx = (Math.cos(angle) * separation) / 2;
+  const dy = (Math.sin(angle) * separation) / 2;
+  return [
+    { id: 1, x: 205 - dx, y: y - dy },
+    { id: 2, x: 205 + dx, y: y + dy },
+  ];
+}
+
+async function checkIdleModeChanges(paused, active, limits) {
+  const elapsed = (await state()).elapsed;
+  for (const limit of limits) {
+    await page.evaluate((value) => window.island.setFrameRateLimit(value), limit);
+    await page.waitForFunction(() => window.__native.pending.size === 0);
+    const idle = await snapshot();
+    assert.equal(idle.state.frameRateLimit, limit);
+    assert.equal(idle.state.paused, paused, 'Changing the limit preserves pause');
+    assert.equal(idle.state.active, active, 'Changing the limit preserves lifecycle');
+    assert.equal(idle.state.elapsed, elapsed, 'Changing the limit preserves idle time');
+    assert.equal(idle.fps, 0);
+    await page.waitForTimeout(100);
+    assert.deepEqual(await snapshot(), idle, 'An idle mode change creates no recurring work');
+  }
+}
+
+try {
+  await context.setOffline(true);
+  await page.goto(origin + 'index.html');
+  await page.waitForFunction(
+    () => window.__native.ready === 1 && document.getElementById('status').hidden,
+  );
+  await page.waitForFunction(() => window.__native.fps.some((value) => value > 0));
+  report.initial = await state();
+  assert.equal(report.initial.failed, false);
+  assert.equal(report.initial.weather, 'sun', 'The initial weather is sunny');
+  assert.equal(report.initial.frameRateLimit, null, 'The default mode is unlocked');
+  await page.waitForTimeout(150);
+  assert.ok((await state()).elapsed > report.initial.elapsed, 'Animation advances offline');
+  await page.screenshot({ path: path.join(output, 'portrait.png') });
+  report.checks.push('offline startup and animated portrait');
+
+  const cdp = await context.newCDPSession(page);
+  const touch = (type, points) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: points });
+  async function reachCloseView() {
+    // Set tilt before the final pinch: separately dispatched finger movements
+    // briefly change separation, so a vertical drag can also affect zoom.
+    await touch('touchStart', pair());
+    for (let step = 1; step <= 15; step++) {
+      await touch('touchMove', pair(0, 180, 457 - (207 * step) / 15));
+    }
+    await touch('touchEnd', []);
+    for (let gesture = 0; gesture < 5; gesture++) {
+      await touch('touchStart', pair(0, 50));
+      for (let step = 1; step <= 10; step++) await touch('touchMove', pair(0, 50 + 28 * step));
+      await touch('touchEnd', []);
+    }
+    near(orbit(await state()).distance, CAMERA.minDistance, 'Pinch reaches close limit');
+    near(
+      orbit(await state()).polar,
+      CAMERA.maxPolarAngle,
+      'Vertical two-finger drag reaches low tilt',
+    );
+    near(orbit(await state()).distance, CAMERA.minDistance, 'Low tilt preserves close zoom');
+    await page.waitForTimeout(100);
+    return state();
+  }
+  await touch('touchStart', [{ id: 1, x: 205, y: 457 }]);
+  await touch('touchMove', [{ id: 1, x: 255, y: 487 }]);
+  await touch('touchEnd', []);
+  const panned = await state();
+  assert.ok(Math.hypot(panned.target[0], panned.target[2]) > 1, 'One finger pans');
+  near(panned.target[1], CAMERA.targetY, 'Ground-plane pan');
+  await page.evaluate(() => window.island.resetView());
+
+  const before = orbit(await state());
+  await touch('touchStart', pair());
+  for (let step = 1; step <= 15; step++)
+    await touch('touchMove', pair(((Math.PI / 4) * step) / 15));
+  await touch('touchEnd', []);
+  const twisted = orbit(await state());
+  near(twisted.bearing - before.bearing, Math.PI / 4, 'Clockwise twist follows fingers');
+  near(twisted.polar, before.polar, 'Pure twist keeps tilt');
+  near(twisted.distance, before.distance, 'Pure twist keeps distance');
+  report.closePortrait = await reachCloseView();
+  await page.screenshot({ path: path.join(output, 'close-portrait.png') });
+  report.checks.push('real touch pan, twist, pinch, and tilt');
+
+  // Exercise all runtime modes with input. A slow CI GPU is valid: caps are
+  // ceilings, and Unlocked follows available browser/display performance.
+  await page.evaluate(() => window.island.resetView());
+  report.frameRateModes = [];
+  for (const limit of [30, 60, null]) {
+    await page.evaluate((value) => {
+      window.__native.fps.length = 0;
+      window.island.setFrameRateLimit(value);
+    }, limit);
+    assert.equal((await state()).frameRateLimit, limit, 'Runtime mode changes are reflected');
+    await touch('touchStart', [{ id: 1, x: 205, y: 457 }]);
+    for (let step = 0; step < 70; step++) {
+      await touch('touchMove', [{ id: 1, x: 205 + 30 * Math.sin(step / 8), y: 457 }]);
+      await page.waitForTimeout(16);
+    }
+    await touch('touchEnd', []);
+    await page.waitForFunction(() => window.__native.fps.some((value) => value > 0));
+    const fps = await page.evaluate(() => window.__native.fps);
+    assert.ok(
+      fps.every((value) => Number.isFinite(value) && value >= 0),
+      'Valid FPS is reported',
+    );
+    if (limit !== null) {
+      // A reporting window can straddle one frame at non-divisible refresh rates.
+      assert.ok(
+        fps.every((value) => value <= limit + 1),
+        `${limit} FPS cap holds under input`,
+      );
+    }
+    report.frameRateModes.push({ limit, fps });
+  }
+  report.checks.push('runtime 30 FPS, 60 FPS, and Unlocked modes under real input');
+
+  await page.evaluate(() => window.island.setPaused(true));
+  await page.waitForFunction(() => window.__native.pending.size === 0);
+  const paused = await snapshot();
+  await page.waitForTimeout(200);
+  assert.deepEqual(await snapshot(), paused, 'Pause leaves no recurring work');
+  assert.equal(paused.fps, 0);
+  await checkIdleModeChanges(true, true, [30, 60, null]);
+  await page.evaluate(() => window.island.setLighting('golden'));
+  await page.waitForFunction(() => window.__native.pending.size === 0);
+  const golden = await snapshot();
+  assert.equal(golden.state.lighting, 'golden');
+  assert.equal(golden.state.elapsed, paused.state.elapsed, 'Lighting redraw preserves paused time');
+  assert.ok(golden.callbacks > paused.callbacks, 'Lighting change redraws once while paused');
+  await page.evaluate(() => window.island.setWeather('storm'));
+  await page.waitForFunction(() => window.__native.pending.size === 0);
+  const storm = await snapshot();
+  assert.equal(storm.state.weather, 'storm');
+  assert.equal(storm.state.lighting, 'golden', 'Storm preserves the chosen sunny lighting');
+  assert.equal(storm.state.paused, true);
+  assert.equal(storm.state.elapsed, golden.state.elapsed, 'Weather changes preserve paused time');
+  assert.equal(storm.state.frameRateLimit, golden.state.frameRateLimit);
+  assert.deepEqual(storm.state.camera, golden.state.camera, 'Weather keeps the current view');
+  assert.deepEqual(storm.state.target, golden.state.target);
+  assert.ok(storm.state.waves.windSpeed > golden.state.waves.windSpeed);
+  assert.ok(storm.state.waves.waveScale > golden.state.waves.waveScale);
+  assert.ok(storm.state.waves.shoreAmplitude > golden.state.waves.shoreAmplitude);
+  assert.ok(storm.callbacks > golden.callbacks, 'Paused weather change requests a redraw');
+  await page.evaluate(() => {
+    window.island.setWeather('storm');
+    window.island.setWeather('invalid');
+  });
+  await page.waitForTimeout(100);
+  assert.deepEqual(await snapshot(), storm, 'Repeated or invalid weather adds no work');
+  await page.evaluate(() => window.island.setWeather('sun'));
+  await page.waitForFunction(() => window.__native.pending.size === 0);
+  const sunRestored = await state();
+  assert.equal(sunRestored.weather, 'sun');
+  assert.equal(sunRestored.lighting, 'golden');
+  assert.deepEqual(sunRestored.waves, golden.state.waves, 'Sun restores the calm wave settings');
+  report.weather = { sun: golden.state, storm: storm.state, restored: sunRestored };
+  await page.evaluate(() => {
+    window.island.setActive(false);
+    window.island.setPaused(false);
+  });
+  const inactive = await snapshot();
+  await page.waitForTimeout(200);
+  assert.deepEqual(await snapshot(), inactive, 'Background leaves no recurring work');
+  assert.equal(inactive.pending, 0);
+  await checkIdleModeChanges(false, false, [30, null, 60]);
+  await page.evaluate(() => window.island.setWeather('storm'));
+  const backgroundStorm = await snapshot();
+  assert.equal(backgroundStorm.state.weather, 'storm');
+  assert.equal(backgroundStorm.pending, 0, 'Background weather selection does not wake rendering');
+  await page.waitForTimeout(100);
+  assert.deepEqual(await snapshot(), backgroundStorm);
+  await page.evaluate(() => window.island.setActive(true));
+  await page.waitForFunction(
+    (elapsed) => window.island.getState().elapsed > elapsed,
+    inactive.state.elapsed,
+  );
+  assert.equal((await state()).frameRateLimit, 60, 'Resume retains the selected mode');
+  assert.equal((await state()).weather, 'storm', 'Resume applies the selected weather');
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(output, 'storm-portrait.png') });
+  await page.evaluate(() => window.island.setWeather('sun'));
+  report.checks.push('mode changes preserve pause, paused redraw, background and resume');
+  report.checks.push('Storm/Sun changes, stronger waves, paused redraw, and background selection');
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.waitForTimeout(200);
+  report.landscape = await state();
+  assert.deepEqual(report.landscape.target, [0, CAMERA.targetY, 0]);
+  assert.equal(report.landscape.failed, false);
+  await page.screenshot({ path: path.join(output, 'landscape.png') });
+  report.closeLandscape = await reachCloseView();
+  await page.screenshot({ path: path.join(output, 'close-landscape.png') });
+  await page.evaluate(() => window.island.setWeather('storm'));
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(output, 'storm-close-landscape.png') });
+  await page.evaluate(() => window.island.resetView());
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: path.join(output, 'storm-landscape.png') });
+  report.checks.push('closest zoom and lowest tilt together in portrait and landscape');
+  assert.equal(
+    await page.evaluate(() => document.querySelector('canvas').getContext('webgl2').getError()),
+    0,
+  );
+  assert.deepEqual(report.errors, []);
+  assert.deepEqual(report.consoleErrors, []);
+  assert.ok(
+    report.requests.every((url) => url.startsWith(origin)),
+    'Only bundled resources requested',
+  );
+  assert.deepEqual((await snapshot()).failures, []);
+  report.checks.push('landscape recenter and clean WebGL/JavaScript');
+
+  injectingFailure = true;
+  await page.evaluate(() => {
+    for (let index = 0; index < 2; index++) {
+      window.dispatchEvent(new ErrorEvent('error', { error: new Error('Smoke test failure') }));
+    }
+    window.island.setActive(true);
+    window.island.setPaused(false);
+    for (const limit of [30, 60, null]) window.island.setFrameRateLimit(limit);
+    for (const weather of ['sun', 'storm']) window.island.setWeather(weather);
+    window.island.resetView();
+  });
+  const failed = await snapshot();
+  assert.equal(failed.failures.length, 1, 'Failure reports once');
+  assert.equal(failed.state.failed, true);
+  assert.equal(failed.pending, 0);
+  assert.equal(failed.fps, 0);
+  await page.waitForTimeout(200);
+  assert.deepEqual(await snapshot(), failed, 'Failed rendering stays stopped');
+  injectingFailure = false;
+  await page.reload();
+  await page.waitForFunction(() => window.__native.ready === 1 && !window.island.getState().failed);
+  assert.deepEqual((await snapshot()).failures, []);
+  assert.equal((await state()).frameRateLimit, null, 'A fresh scene defaults to Unlocked');
+  assert.equal((await state()).weather, 'sun', 'A fresh scene defaults to Sun');
+  report.checks.push('idempotent failure, mode changes stay stopped, reload recovery');
+  report.pass = true;
+} catch (error) {
+  report.pass = false;
+  report.failure = error.stack || String(error);
+  await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {});
+} finally {
+  await browser.close();
+  await fs.writeFile(path.join(output, 'evidence.json'), JSON.stringify(report, null, 2) + '\n');
+}
+console.log(
+  JSON.stringify(
+    { pass: report.pass, checks: report.checks, failure: report.failure, output },
+    null,
+    2,
+  ),
+);
+process.exitCode = report.pass ? 0 : 1;

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Island Life</string>
+    <string name="tagline">A little room to breathe.</string>
+    <string name="gesture_hint">Drag to pan · Pinch to zoom\n2 fingers: twist to turn · Up/down to tilt</string>
+    <string name="loading">Finding your island…</string>
+    <string name="scene_description">A tropical island surrounded by an animated sea. Drag one finger to pan. Twist two fingers to turn the island, drag both fingers up or down to tilt, and pinch to zoom.</string>
+    <string name="pause">Pause</string>
+    <string name="play">Play</string>
+    <string name="daylight">Daylight</string>
+    <string name="golden_light">Golden light</string>
+    <string name="storm">Storm</string>
+    <string name="sun">Sun</string>
+    <string name="weather_stormy">Stormy weather</string>
+    <string name="weather_sunny">Sunny weather</string>
+    <string name="recenter">Recenter</string>
+    <string name="fps_value">%1$d FPS</string>
+    <string name="fps_waiting">— FPS</string>
+    <string name="frame_rate_unlocked">Unlocked</string>
+    <string name="frame_rate_button_description">%1$s. Choose frame rate limit</string>
+    <string name="frame_rate_limit_description">Limit: %1$s</string>
+    <string name="retry">Try again</string>
+    <string name="error_title">The sea could not load</string>
+    <string name="error_help">Try again, or update Android System WebView. This scene needs WebGL 2 and floating-point rendering support.</string>
+</resources>

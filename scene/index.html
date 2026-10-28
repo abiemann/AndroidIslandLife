@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="theme-color" content="#126f78" />
+    <title>Island Life</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #126f78;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      #status {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        text-align: center;
+        padding: 2rem;
+        color: #f4f2df;
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+        background: #126f78;
+      }
+      #status[hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status" role="status">Finding your island…</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
