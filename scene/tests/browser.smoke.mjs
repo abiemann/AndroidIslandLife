@@ -32,13 +32,13 @@ function passed(label) {
 const deadline = setTimeout(
   () => {
     report.pass = false;
-    const timeout = `Browser smoke exceeded eight minutes during: ${report.phase}`;
+    const timeout = `Browser smoke exceeded twelve minutes during: ${report.phase}`;
     report.failure = report.failure ? `${report.failure}\n${timeout}` : timeout;
     writeFileSync(evidence, JSON.stringify(report, null, 2) + '\n');
     console.error(report.failure);
     process.exit(1);
   },
-  8 * 60 * 1000,
+  12 * 60 * 1000,
 );
 deadline.unref();
 phase('Launch browser');
@@ -60,6 +60,10 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 page.setDefaultTimeout(120000);
+async function screenshot(filename) {
+  phase(`Screenshot: ${filename}`);
+  await page.screenshot({ path: path.join(output, filename) });
+}
 let injectingFailure = false;
 page.on('pageerror', (error) => {
   if (!injectingFailure) report.errors.push(String(error));
@@ -176,7 +180,7 @@ try {
     report.initial.elapsed,
   );
   assert.ok((await state()).elapsed > report.initial.elapsed, 'Animation advances offline');
-  await page.screenshot({ path: path.join(output, 'portrait.png') });
+  await screenshot('portrait.png');
   passed('offline startup and animated portrait');
 
   const cdp = await context.newCDPSession(page);
@@ -294,14 +298,14 @@ try {
   near(twisted.polar, before.polar, 'Pure twist keeps tilt');
   near(twisted.distance, before.distance, 'Pure twist keeps distance');
   report.closePortrait = await reachCloseView();
-  await page.screenshot({ path: path.join(output, 'close-portrait.png') });
+  await screenshot('close-portrait.png');
   await page.evaluate(() => window.island.setWeather('storm'));
   await page.waitForTimeout(1200);
   report.closeStormPortrait = await state();
   assert.deepEqual(report.closeStormPortrait.camera, report.closePortrait.camera);
   near(report.closeStormPortrait.cameraNear, CAMERA.minNear, 'Storm keeps close clipping');
   assert.equal(report.closeStormPortrait.waterSide, 0, 'Storm retains both wave faces');
-  await page.screenshot({ path: path.join(output, 'storm-close-portrait.png') });
+  await screenshot('storm-close-portrait.png');
   await page.evaluate(() => window.island.setWeather('sun'));
   passed('real touch pan, twist, pinch, and tilt');
 
@@ -407,7 +411,7 @@ try {
   assert.equal((await state()).frameRateLimit, 60, 'Resume retains the selected mode');
   assert.equal((await state()).weather, 'storm', 'Resume applies the selected weather');
   await page.waitForTimeout(1200);
-  await page.screenshot({ path: path.join(output, 'storm-portrait.png') });
+  await screenshot('storm-portrait.png');
   await page.evaluate(() => window.island.setWeather('sun'));
   passed('mode changes preserve pause, paused redraw, background and resume');
   passed('Storm/Sun changes, stronger waves, paused redraw, and background selection');
@@ -418,19 +422,19 @@ try {
   report.landscape = await state();
   assert.deepEqual(report.landscape.target, [0, CAMERA.targetY, 0]);
   assert.equal(report.landscape.failed, false);
-  await page.screenshot({ path: path.join(output, 'landscape.png') });
+  await screenshot('landscape.png');
   report.closeLandscape = await reachCloseView();
-  await page.screenshot({ path: path.join(output, 'close-landscape.png') });
+  await screenshot('close-landscape.png');
   await page.evaluate(() => window.island.setWeather('storm'));
   await page.waitForTimeout(1200);
   report.closeStormLandscape = await state();
   assert.deepEqual(report.closeStormLandscape.camera, report.closeLandscape.camera);
   near(report.closeStormLandscape.cameraNear, CAMERA.minNear, 'Storm keeps close clipping');
   assert.equal(report.closeStormLandscape.waterSide, 0, 'Storm retains both wave faces');
-  await page.screenshot({ path: path.join(output, 'storm-close-landscape.png') });
+  await screenshot('storm-close-landscape.png');
   await page.evaluate(() => window.island.resetView());
   await page.waitForTimeout(200);
-  await page.screenshot({ path: path.join(output, 'storm-landscape.png') });
+  await screenshot('storm-landscape.png');
   passed('real offshore pan, waterline zoom/tilt, and close panning in both orientations');
   assert.equal(
     await page.evaluate(() => document.querySelector('canvas').getContext('webgl2').getError()),
@@ -475,7 +479,7 @@ try {
 } catch (error) {
   report.pass = false;
   report.failure = error.stack || String(error);
-  await page.screenshot({ path: path.join(output, 'failure.png') }).catch(() => {});
+  await screenshot('failure.png').catch(() => {});
 } finally {
   await fs.writeFile(evidence, JSON.stringify(report, null, 2) + '\n');
   phase('Close browser');

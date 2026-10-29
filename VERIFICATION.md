@@ -128,6 +128,8 @@ The smoke now retains every existing behavior assertion with shorter interpolate
 
 JavaScript lint/formatting, all 26 unit tests, production-bundle reproduction, and local documentation links passed. The complete software-rendering smoke passed with Playwright's pinned Chromium 156.0.8078.4 in 197 seconds at quarter scale (versus 290 seconds at half scale on the same Windows machine). The normal 1.5-scale hardware-rendering run passed in 18 seconds. These are test-runtime samples, not phone performance measurements. Hosted validation remains pending; these changes do not alter the Android app or scene bundle.
 
+[Run 40789821708](https://github.com/abiemann/AndroidIslandLife/actions/runs/40789821708) passed Kotlin formatting, Android compilation, lint, and unit-test tasks. Its browser checks progressed through close landscape gestures and saved the storm close-up without reported JavaScript errors, but exhausted the initial eight-minute deadline before the final checks. The retained report confirmed progress rather than a startup hang. The suite now allows twelve minutes on the slower hosted software renderer, with a fourteen-minute step limit and explicit screenshot phase logs; full hosted completion is still pending.
+
 ## Remaining device validation
 
 Sustained physical-device performance, heat/battery usage, and GPU compatibility across vendors remain unmeasured. Brief Pixel checks do not establish long-term performance. The app requires WebGL2 plus float rendering/filtering and multisampled half-float targets; unsupported devices show a retry/help state. No release APK, signing configuration or Play Store publication was created.
