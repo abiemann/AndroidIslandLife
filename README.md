@@ -4,6 +4,8 @@ A small Android island scene with a Jetpack Compose interface and animated sea f
 
 Drag one finger to pan, pinch to zoom, twist two fingers to turn the island, or move both fingers up/down to tilt. Pause the waves, switch daylight/golden light, or recenter the view. **Storm**, immediately left of **Recenter**, brings rough seas with larger waves and an overcast atmosphere; the button then becomes **Sun**, which restores calm water and your chosen daylight/golden lighting. Tap the FPS counter at the top right to choose **30 FPS**, **60 FPS**, or **Unlocked**. Unlocked is the default; your choice is saved between launches. Rocks sit among the trees, leaving the beach clear.
 
+![Island Life in landscape mode](docs/images/island-life-landscape.png)
+
 ## Architecture
 
 Ultra-Water is a Three.js/WebGL2 renderer. Compose owns the native controls and lifecycle; an AndroidView hosts the bundled renderer in an offline WebView using Android's [WebViewAssetLoader](https://developer.android.com/develop/ui/views/layout/webapps/load-local-content). The APK includes all scene code and geometry and requests no internet permission. This is a hybrid rendering app, not a Kotlin port of Ultra-Water.
