@@ -49,7 +49,7 @@ The bundle check rebuilds into a temporary directory and compares every asset wi
 - `npm run dev` in `scene` starts a localhost renderer preview. Native controls appear only in Android.
 - `npm test` checks frame pacing, scheduling, and gestures.
 - `npx playwright install chromium` then `npm run test:browser` in `scene` checks the offline production bundle. Set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH to use an existing Chromium installation.
-- Linux browser checks use software graphics at quarter-scale raster resolution while retaining the full scene, CSS viewport, and real touch events. Set PLAYWRIGHT_SOFTWARE_RENDERING=1 to reproduce that mode elsewhere. The smoke test logs each phase, saves evidence under `scene/test-results/browser-smoke`, and fails after twelve minutes if the browser stalls.
+- Linux browser checks use software graphics at quarter-scale raster resolution while retaining the full scene, CSS viewport, and real touch events. Set PLAYWRIGHT_SOFTWARE_RENDERING=1 to reproduce that mode elsewhere. The smoke test logs each phase, saves evidence under `scene/test-results/browser-smoke`, and has a twelve-minute overall deadline.
 - `.\gradlew.bat connectedDebugAndroidTest` checks native large-text layouts on an emulator or test device.
 - `scripts/android-smoke.mjs` exercises the actual WebView, lifecycle, blocked requests, and renderer recovery. It requires ADB and an explicit emulator ANDROID_SERIAL and refuses physical devices.
 

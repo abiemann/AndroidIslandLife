@@ -20,7 +20,7 @@
 - [x] Add frame-loop lifecycle tests and portable offline browser smoke checks.
 - [x] Fix and test large-text header layout and reachable Retry in short windows.
 - [x] Add the Unlicense for original code and retain bundled third-party notices.
-- [ ] Complete a successful hosted GitHub Actions run. Explicit SDK setup fixes the first failure; bounded software-graphics checks address the subsequent browser-test timeout. Local validation is separate from a hosted CI result.
+- [x] Complete a successful hosted GitHub Actions run: [40791636495](https://github.com/abiemann/AndroidIslandLife/actions/runs/40791636495) passed source checks, Android compilation/lint, production browser checks, and all four native Compose tests.
 - [ ] Broaden physical GPU/WebView coverage and evaluate nonvisual camera-control alternatives.
 
 No store release, release signing, audio, accounts or networking are included.
