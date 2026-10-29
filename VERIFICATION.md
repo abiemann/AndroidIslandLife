@@ -132,6 +132,20 @@ JavaScript lint/formatting, all 26 unit tests, production-bundle reproduction, a
 
 The subsequent [hosted run 40791636495](https://github.com/abiemann/AndroidIslandLife/actions/runs/40791636495), at commit `c9b5b57`, completed successfully. Both jobs passed: source style and all 26 unit tests, bundle reproduction, Kotlin formatting, Android build/lint, and the full production browser smoke. The software-graphics step took 10 minutes 12 seconds and reported no unexpected JavaScript or console errors. The hosted Android 35 emulator executed all four Compose tests (FPS selector, large-text header, short-window Retry, and Storm/Recenter controls): four passed, zero failed, zero skipped, with 14.770 seconds total test execution time. The workflow retained its demo APK and both test reports.
 
+## Android Studio compatibility — 2026-10-28
+
+Android Studio Quail 3 (2026.1.3) rejected AGP 9.4.1 during project sync. The project now pins AGP 9.3.3, the patched 9.3 release supported by this IDE. Gradle 9.6.0, Kotlin/Compose compiler 2.2.10, compileSdk 36.1, and the existing JVM settings are retained. See the [Studio compatibility table](https://developer.android.com/build/releases/about-agp#android_gradle_plugin_and_android_studio_compatibility) and [AGP 9.3 release notes](https://developer.android.com/build/releases/agp-9-3-0-release-notes).
+
+- The installed Studio 2026.1.3 completed project sync successfully in 9.388 seconds. The failed-sync banner cleared and the app run configuration became available.
+- `spotlessCheck assembleDebug lintDebug testDebugUnitTest assembleDebugAndroidTest --no-daemon` passed with the installed JBR 25.0.2 in 52 seconds. Android lint reported zero errors and ten dependency-update warnings. The native test APK compiled; native instrumentation was not rerun for this compatibility change, and `testDebugUnitTest` has no sources.
+- The successful hosted run above predates this AGP pin. The rendering bundle and app source are unchanged.
+
+## Landscape gesture hint — 2026-10-28
+
+Moved the landscape gesture hint to the right of the Pause/lighting/weather/Recenter controls and centered the two groups vertically on the same row. The hint and FPS badge now use a shared 24dp end inset inside the safe drawing area. The footer keeps a gap between groups and allows their content to wrap within separate width limits. Portrait retains the existing centered hint above the controls.
+
+Kotlin formatting, `assembleDebug`, and Android lint passed. The update installed successfully on the Pixel 8 Pro; its landscape screenshot was visually checked for the shared row, matching right edges, readable text, and separation between controls and hint. The saved 30 FPS choice was retained. No renderer or gesture behavior changed.
+
 ## Remaining device validation
 
 Sustained physical-device performance, heat/battery usage, and GPU compatibility across vendors remain unmeasured. Brief Pixel checks do not establish long-term performance. The app requires WebGL2 plus float rendering/filtering and multisampled half-float targets; unsupported devices show a retry/help state. No release APK, signing configuration or Play Store publication was created.

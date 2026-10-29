@@ -16,7 +16,7 @@ Unlocked rendering submits a frame on every available display callback; capped m
 
 ## Build the demo
 
-Use Android Studio or JDK 21, Android SDK Platform 36.1, and Build Tools 36.0.0. The wrapper pins Gradle 9.6.0 and verifies its download checksum. First builds need network access for development dependencies; the installed app does not.
+Use Android Studio Quail 3 (2026.1.3) or newer, or JDK 21 for command-line builds, plus Android SDK Platform 36.1 and Build Tools 36.0.0. The project pins Android Gradle Plugin 9.3.3 to remain compatible with Quail 3. The wrapper pins Gradle 9.6.0 and verifies its download checksum. First builds need network access for development dependencies; the installed app does not.
 
 Open the folder in Android Studio and let it configure the SDK, or set ANDROID_HOME for a command-line build. Then run:
 

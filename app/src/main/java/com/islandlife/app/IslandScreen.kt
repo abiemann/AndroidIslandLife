@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +68,7 @@ import kotlinx.coroutines.delay
 
 private const val FRAME_RATE_LIMIT_KEY = "frame_rate_limit"
 private val frameRateLimits = listOf(30, 60, 0)
+private val overlayEdgePadding = 24.dp
 
 @Composable
 internal fun IslandScreen() {
@@ -164,21 +166,10 @@ internal fun IslandScreen() {
             modifier = Modifier.align(Alignment.TopCenter)
         )
         if (loaded && failure == null) {
-            Column(
-                Modifier.align(if (landscape) Alignment.BottomStart else Alignment.BottomCenter)
-                    .safeDrawingPadding().padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Surface(color = Color(0xD9194F55), shape = RoundedCornerShape(20.dp)) {
-                    Text(
-                        stringResource(R.string.gesture_hint),
-                        Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                        textAlign = TextAlign.Center,
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                Spacer(Modifier.height(10.dp))
+            IslandFooter(
+                landscape = landscape,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) { controlsModifier ->
                 IslandControls(
                     paused = paused,
                     golden = golden,
@@ -186,7 +177,8 @@ internal fun IslandScreen() {
                     onTogglePause = { paused = !paused },
                     onToggleLighting = { golden = !golden },
                     onToggleWeather = { stormy = !stormy },
-                    onRecenter = { scene?.recenter() }
+                    onRecenter = { scene?.recenter() },
+                    modifier = controlsModifier
                 )
             }
         }
@@ -202,6 +194,44 @@ internal fun IslandScreen() {
                 modifier = Modifier.align(Alignment.Center)
             )
         }
+    }
+}
+
+@Composable
+private fun IslandFooter(landscape: Boolean, modifier: Modifier = Modifier, controls: @Composable (Modifier) -> Unit) {
+    if (landscape) {
+        Row(
+            modifier.fillMaxWidth().safeDrawingPadding()
+                .padding(start = 16.dp, top = 16.dp, end = overlayEdgePadding, bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            controls(Modifier.weight(0.6f, fill = false))
+            Spacer(Modifier.width(16.dp))
+            GestureHint(Modifier.weight(0.4f, fill = false))
+        }
+    } else {
+        Column(
+            modifier.safeDrawingPadding().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            GestureHint()
+            Spacer(Modifier.height(10.dp))
+            controls(Modifier)
+        }
+    }
+}
+
+@Composable
+private fun GestureHint(modifier: Modifier = Modifier) {
+    Surface(modifier, color = Color(0xD9194F55), shape = RoundedCornerShape(20.dp)) {
+        Text(
+            stringResource(R.string.gesture_hint),
+            Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+            textAlign = TextAlign.Center,
+            color = Color.White,
+            style = MaterialTheme.typography.labelMedium
+        )
     }
 }
 
@@ -271,7 +301,7 @@ internal fun IslandHeader(
     val buttonDescription = stringResource(R.string.frame_rate_button_description, fpsText)
     val limitDescription = stringResource(R.string.frame_rate_limit_description, limitText)
     Row(
-        modifier.fillMaxWidth().safeDrawingPadding().padding(24.dp),
+        modifier.fillMaxWidth().safeDrawingPadding().padding(overlayEdgePadding),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top
     ) {

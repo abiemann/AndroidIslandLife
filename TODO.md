@@ -11,6 +11,8 @@
 - [x] Implement Compose host, native controls, lifecycle cleanup and retry state.
 - [x] Add Storm/Sun beside Recenter, with stronger waves, overcast lighting, restoration of sunny settings, and weather state retained through recreation/retry.
 - [x] Verify debug APK build and Android lint (zero errors; pinned-version update advisories remain).
+- [x] Align AGP with Android Studio Quail 3 and verify successful IDE sync, app build, and native test APK compilation.
+- [x] Place the landscape gesture hint beside the controls, aligned with the right edge of FPS; verify on the Pixel.
 - [x] Verify offline bundled renderer in portrait/landscape, pause, lighting and recenter.
 - [x] Verify app launch, live/paused FPS display, touch controls, background/foreground, and rotation state restoration in an Android 36.1 emulator.
 - [ ] Measure sustained performance and battery use on a physical Android device.
